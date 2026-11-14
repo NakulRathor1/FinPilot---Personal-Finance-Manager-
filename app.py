@@ -18,6 +18,7 @@ def init_db():
  CREATE TABLE IF NOT EXISTS budgets(id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL,category TEXT NOT NULL,amount REAL NOT NULL,month TEXT NOT NULL,UNIQUE(user_id,category,month),FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE);
  CREATE TABLE IF NOT EXISTS goals(id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL,name TEXT NOT NULL,target REAL NOT NULL,saved REAL NOT NULL DEFAULT 0,deadline TEXT,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE);
  CREATE TABLE IF NOT EXISTS goal_contributions(id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL,goal_id INTEGER NOT NULL,amount REAL NOT NULL,date TEXT NOT NULL,note TEXT DEFAULT '',FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,FOREIGN KEY(goal_id) REFERENCES goals(id) ON DELETE CASCADE);
+  CREATE TABLE IF NOT EXISTS savings_pots(id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL,name TEXT NOT NULL,amount REAL NOT NULL DEFAULT 0,notes TEXT DEFAULT '',sort_order INTEGER DEFAULT 0,created_at TEXT DEFAULT CURRENT_TIMESTAMP,FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE);
  CREATE TABLE IF NOT EXISTS bills(id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL,title TEXT NOT NULL,provider TEXT DEFAULT '',amount REAL NOT NULL,due_date TEXT NOT NULL,frequency TEXT DEFAULT 'Once',status TEXT DEFAULT 'Upcoming',category TEXT DEFAULT 'Bills',type TEXT DEFAULT 'expense',notes TEXT DEFAULT '',transaction_id INTEGER,created_at TEXT DEFAULT CURRENT_TIMESTAMP,FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,FOREIGN KEY(transaction_id) REFERENCES transactions(id) ON DELETE SET NULL);
  CREATE TABLE IF NOT EXISTS investments(id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL,asset_type TEXT NOT NULL,asset_name TEXT NOT NULL,symbol TEXT DEFAULT '',quantity REAL NOT NULL,buy_price REAL NOT NULL,current_price REAL NOT NULL,purchase_date TEXT NOT NULL,notes TEXT DEFAULT '',quote_source TEXT DEFAULT 'manual',price_updated_at TEXT,created_at TEXT DEFAULT CURRENT_TIMESTAMP,FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE);
  CREATE TABLE IF NOT EXISTS investment_transactions(id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL,investment_id INTEGER NOT NULL,action TEXT NOT NULL,quantity REAL NOT NULL,price REAL NOT NULL,amount REAL NOT NULL,notes TEXT DEFAULT '',date TEXT NOT NULL,created_at TEXT DEFAULT CURRENT_TIMESTAMP,FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,FOREIGN KEY(investment_id) REFERENCES investments(id) ON DELETE CASCADE);
@@ -175,6 +176,78 @@ def goal_contribution(gid):
  c=db(); g=c.execute('SELECT * FROM goals WHERE id=? AND user_id=?',(gid,uid())).fetchone()
  if not g: c.close(); return err('Goal not found.',404)
  c.execute('UPDATE goals SET saved=saved+? WHERE id=? AND user_id=?',(amount,gid,uid())); c.execute('INSERT INTO goal_contributions(user_id,goal_id,amount,date,note) VALUES(?,?,?,?,?)',(uid(),gid,amount,str(d.get('date') or date.today().isoformat()),str(d.get('note','')))); c.commit(); c.close(); return jsonify(success=True)
+
+@app.route('/api/savings-pots', methods=['GET', 'POST'])
+def savings_pots():
+    if not auth():
+        return err('Login required', 401)
+    c = db()
+    if request.method == 'GET':
+        rows = c.execute(
+            'SELECT * FROM savings_pots WHERE user_id=? ORDER BY sort_order, id',
+            (uid(),),
+        ).fetchall()
+        total = money(sum(float(r['amount'] or 0) for r in rows))
+        c.close()
+        return jsonify(success=True, pots=[dict(r) for r in rows], total=total)
+    d = request.get_json(silent=True) or {}
+    name = str(d.get('name', '')).strip()[:120]
+    notes = str(d.get('notes', '')).strip()[:500]
+    try:
+        amount = float(d.get('amount', 0))
+    except (TypeError, ValueError):
+        amount = 0
+    if not name:
+        c.close()
+        return err('Enter a name (e.g. Cash, Slice, Bajaj Wallet).')
+    if not math.isfinite(amount):
+        c.close()
+        return err('Enter a valid amount.')
+    cur = c.execute(
+        'INSERT INTO savings_pots(user_id,name,amount,notes,created_at) VALUES(?,?,?,?,?)',
+        (uid(), name, money(amount), notes, datetime.now().isoformat(timespec='seconds')),
+    )
+    c.commit()
+    row = c.execute('SELECT * FROM savings_pots WHERE id=?', (cur.lastrowid,)).fetchone()
+    c.close()
+    return jsonify(success=True, pot=dict(row))
+
+@app.route('/api/savings-pots/<int:pid>', methods=['PATCH', 'DELETE'])
+def savings_pot_item(pid):
+    if not auth():
+        return err('Login required', 401)
+    c = db()
+    row = c.execute('SELECT * FROM savings_pots WHERE id=? AND user_id=?', (pid, uid())).fetchone()
+    if not row:
+        c.close()
+        return err('Item not found.', 404)
+    if request.method == 'DELETE':
+        c.execute('DELETE FROM savings_pots WHERE id=? AND user_id=?', (pid, uid()))
+        c.commit()
+        c.close()
+        return jsonify(success=True)
+    d = request.get_json(silent=True) or {}
+    name = str(d.get('name', row['name'])).strip()[:120]
+    notes = str(d.get('notes', row['notes'] if 'notes' in row.keys() else '') or '').strip()[:500]
+    try:
+        amount = float(d.get('amount', row['amount']))
+    except (TypeError, ValueError):
+        amount = float(row['amount'])
+    if not name:
+        c.close()
+        return err('Name is required.')
+    if not math.isfinite(amount):
+        c.close()
+        return err('Enter a valid amount.')
+    c.execute(
+        'UPDATE savings_pots SET name=?, amount=?, notes=? WHERE id=? AND user_id=?',
+        (name, money(amount), notes, pid, uid()),
+    )
+    c.commit()
+    row = c.execute('SELECT * FROM savings_pots WHERE id=?', (pid,)).fetchone()
+    c.close()
+    return jsonify(success=True, pot=dict(row))
+
 @app.route('/api/receipts',methods=['POST'])
 def save_receipt():
  if not auth(): return err('Login required',401)
@@ -555,7 +628,7 @@ def investment_analysis():
 def reset():
   if not auth(): return err('Login required',401)
   c=db()
-  for t in ('investment_transactions','goal_contributions','bills','investments','transactions','budgets','goals'):
+  for t in ('investment_transactions','goal_contributions','savings_pots','bills','investments','transactions','budgets','goals'):
     try: c.execute(f'DELETE FROM {t} WHERE user_id=?',(uid(),))
     except sqlite3.OperationalError: pass
   c.commit(); c.close(); return jsonify(success=True)
