@@ -316,14 +316,66 @@ def _fetch_yahoo_price(symbol):
   except Exception as e:
     return None, f'Quote failed: {type(e).__name__}'
 
+
+def search_yahoo_assets(query):
+    url = (
+        "https://query1.finance.yahoo.com/v1/finance/search?"
+        + urllib.parse.urlencode({
+            "q": query,
+            "quotesCount": 20,
+            "newsCount": 0
+        })
+    )
+
+    req = urllib.request.Request(
+        url,
+        headers={"User-Agent": "Mozilla/5.0"}
+    )
+
+    with urllib.request.urlopen(req, timeout=10) as response:
+        data = json_lib.loads(response.read().decode("utf-8"))
+
+    results = []
+
+    for item in data.get("quotes", []):
+        quote_type = item.get("quoteType", "")
+
+        if quote_type not in ("EQUITY", "ETF", "MUTUALFUND", "CRYPTOCURRENCY"):
+            continue
+
+        symbol = item.get("symbol", "")
+        name = item.get("longname") or item.get("shortname") or symbol
+
+        results.append({
+            "asset_name": name,
+            "symbol": symbol,
+            "asset_type": quote_type,
+            "quote_source": "Yahoo Finance",
+            "exchange": item.get("exchange", ""),
+            "currency": item.get("currency", "")
+        })
+
+    return results
+
+
 @app.route('/api/investments/catalog')
 def investment_catalog():
-  if not auth(): return err('Login required',401)
-  q=str(request.args.get('q','')).strip().lower()
-  items=ASSET_CATALOG
-  if q:
-    items=[a for a in items if q in a['asset_name'].lower() or q in a['symbol'].lower() or q in a['asset_type'].lower()]
-  return jsonify(success=True, results=items[:20])
+    if not auth():
+        return err('Login required', 401)
+
+    q = str(request.args.get('q', '')).strip()
+
+    if len(q) < 1:
+        return jsonify(success=True, results=ASSET_CATALOG[:20])
+
+    try:
+        items = search_yahoo_assets(q)
+        return jsonify(success=True, results=items[:20])
+
+    except Exception as e:
+        print("Yahoo search error:", e)
+        return jsonify(success=True, results=[])
+
 
 @app.route('/api/investments/quote')
 def investment_quote():
