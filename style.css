@@ -42,3 +42,281 @@ table{min-width:620px}
 
 /* Variables used by the original, signature dashboard components. */
 .dashboard-page{--surface:var(--panel);--surface-2:var(--panel-2);--border:var(--line);--muted-text:var(--muted);--danger:var(--red);--green-soft:rgba(55,211,155,.12);--radius:18px}
+
+
+/* =========================================================
+   FinPilot mobile polish — phone-first overrides
+   ========================================================= */
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+.btn,
+.nav a,
+.secondary {
+  min-height: 44px;
+  touch-action: manipulation;
+}
+
+input, select, textarea {
+  font-size: 16px; /* prevents iOS zoom on focus */
+  max-width: 100%;
+}
+
+img, svg, video, canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
+.toast {
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  bottom: max(18px, env(safe-area-inset-bottom));
+  max-width: min(92vw, 420px);
+  z-index: 10050;
+}
+
+body.finpilot-modal-open {
+  overflow: hidden;
+  touch-action: none;
+}
+
+@media (max-width: 900px) {
+  .layout {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  .sidebar {
+    position: sticky !important;
+    top: 0;
+    z-index: 1000;
+    width: 100% !important;
+    height: auto !important;
+    max-height: none;
+    overflow: visible !important;
+    padding: 12px 14px calc(10px + env(safe-area-inset-top)) !important;
+    border-right: 0 !important;
+    border-bottom: 1px solid var(--line);
+    gap: 10px !important;
+    background: color-mix(in srgb, var(--panel) 94%, transparent);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+
+  .brand {
+    font-size: 20px;
+    padding: 4px 4px 2px;
+  }
+
+  .nav {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 8px !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 4px;
+  }
+  .nav::-webkit-scrollbar { display: none; }
+
+  .nav a {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    padding: 10px 14px !important;
+    border-radius: 999px !important;
+    font-size: 13px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+  }
+  .nav a.active {
+    background: var(--primary) !important;
+    color: #062117 !important;
+    border-color: transparent !important;
+  }
+  body.light .nav a.active {
+    color: #fff !important;
+  }
+
+  .side-bottom {
+    display: flex !important;
+    flex-direction: row;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+    margin-top: 0 !important;
+  }
+  .side-bottom .user-label { display: none !important; }
+  .side-bottom button {
+    padding: 8px 12px;
+    min-height: 40px;
+    font-size: 13px;
+  }
+
+  .main {
+    width: 100%;
+    max-width: none !important;
+    margin: 0;
+    padding: 18px 14px calc(28px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .topbar {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+  .topbar .actions {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .topbar .actions button {
+    flex: 1 1 auto;
+  }
+
+  .heading {
+    font-size: clamp(22px, 6vw, 28px) !important;
+    line-height: 1.2;
+  }
+
+  .stats,
+  .grid.stats,
+  .two,
+  .three,
+  .grid.two,
+  .grid.three {
+    grid-template-columns: 1fr !important;
+  }
+
+  .card {
+    padding: 16px !important;
+    border-radius: 16px;
+  }
+
+  .stat-value {
+    font-size: clamp(20px, 5.5vw, 26px);
+    word-break: break-word;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .span2 {
+    grid-column: auto !important;
+  }
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .toolbar > * {
+    width: 100%;
+    max-width: none !important;
+  }
+
+  table {
+    min-width: 520px;
+    font-size: 13px;
+  }
+  th, td {
+    padding: 10px 8px;
+  }
+
+  .modal {
+    padding: 12px;
+    align-items: flex-end;
+  }
+  .modal.open,
+  .modal.show {
+    display: flex !important;
+  }
+  .modal-box {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: min(92vh, 920px);
+    overflow: auto;
+    border-radius: 18px 18px 12px 12px;
+    padding: 18px 16px calc(16px + env(safe-area-inset-bottom)) !important;
+    margin: 0;
+  }
+
+  .actions {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .actions button {
+    flex: 1 1 auto;
+  }
+
+  .auth-wrap {
+    padding: 24px 16px;
+  }
+  .auth-card {
+    width: min(100%, 420px);
+    margin: 0 auto;
+    padding: 22px 18px;
+  }
+
+  /* Investment rows */
+  .investment-summary {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  .investment-row {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  .investment-info {
+    grid-column: 1 / -1 !important;
+  }
+  .investment-actions {
+    grid-column: 1 / -1 !important;
+    justify-content: flex-start !important;
+  }
+  .investment-form {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .nav a {
+    padding: 9px 12px !important;
+    font-size: 12.5px;
+  }
+  .heading {
+    font-size: 22px !important;
+  }
+  .main {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+  .investment-summary {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .sidebar {
+    position: relative !important;
+  }
+  .modal-box {
+    max-height: 88vh;
+  }
+}
